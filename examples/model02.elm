@@ -1,43 +1,43 @@
 
-import Plot
 import Simulation
-
 import Html.App as App
 
-type alias Point = (Float,Float)
+(=>) = (,)
 
-type alias Model =
-  { pos : Point
-  , vel : Point
-  }
+position1 =
+  Simulation.moving
+    [  5 => (-5,7)
+    ,  7 => (-9,9)
+    , 20 => (7,3)
+    , 30 => (-9,-7)
+    , 60 => (3,8)
+    ]
 
-(+|) (x1,y1) (x2,y2) = (x1+x2,y1+y2)
+position2 =
+  Simulation.moving
+    [ 3 => (2,-5)
+    , 4 => (2,9)
+    ]
 
-position time =
-  begin (-5,7) 5 time
-  +| move (-5,7) (9,-9) 5 7 time
-  +| move (9,-9) (7,3) 7 20 time
-  +| move (7,3) (-9,-7) 20 30 time
-  +| move (-9,-7) (3,8) 30 60 time
-  +| stay (3,8) 60 time
-
-move (x0,y0) (x1,y1) t0 t1 t =
-  let
-    t' = (t-t0)/(t1-t0)
-    x = x0 + t'*(x1-x0)
-    y = y0 + t'*(y1-y0)
-  in
-    if t0 > t || t >= t1 then (0,0)
-    else (x,y)
-
-begin (x0,y0) t0 t =
-  if t < t0 then (x0,y0)
-  else (0,0)
-  
-stay (x0,y0) t0 t =
-  if t >= t0 then (x0,y0)
-  else (0,0)
+position3 =
+  Simulation.moving
+    [ 1 => (1,10)
+    , 2 => (2,9)
+    , 3 => (2,7)
+    , 4 => (4,4)
+    , 5 => (5,6)
+    , 6 => (8,7)
+    , 7 => (-9,-1)
+    ]
     
+position4 =
+  let
+    f t = t => (t/10*cos t,t/10*sin t)
+  in
+    Simulation.moving <| List.map f [1..60]
+
+position = position4
+
 -----------------------------------------------------------------------------
 --- MAIN
 -----------------------------------------------------------------------------
