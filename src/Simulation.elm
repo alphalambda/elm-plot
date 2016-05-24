@@ -425,8 +425,11 @@ view data =
                     [ div [] [ text t1 ]
                     , div [] [ text t2 ]
                     , button [ onClick Reset, buttonstyle ] [ text "Reset" ]
-                    , button [ onClick Pause, buttonstyle ] [ text "Pause" ]
-                    , button [ onClick Resume, buttonstyle ] [ text "Resume" ]
+                    , if data.status == Paused
+                      then
+                        button [onClick Resume,buttonstyle] [ text "Resume" ]
+                      else
+                        button [ onClick Pause, buttonstyle ] [ text "Pause" ]
                     , button [ onClick Step, buttonstyle ] [ text "Step" ]
                     -- , div [] [ text data.message ]
                     ]

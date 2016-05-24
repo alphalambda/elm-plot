@@ -48,6 +48,7 @@ import Html.Attributes exposing (style)
 import Html.Events exposing (onMouseLeave)
 import Json.Decode as Json exposing ((:=))
 import Mouse exposing (Position)
+import String
 import Text
 import VirtualDom
 import Collage as C
@@ -80,7 +81,6 @@ type alias Model id =
     , pos : Maybe ( Float, Float )
     }
 
-
 init : a -> Model a
 init id =
     { id = id
@@ -111,7 +111,6 @@ updateMouse get msg model =
                     { model | pos = Nothing }
     in
         model'
-
 
 mouseEnable : Model a -> Model a
 mouseEnable model =
@@ -175,7 +174,7 @@ view lift ( e11, e12s, e22, tmini ) model =
                 div mouseListeners [ Element.toHtml elem ]
 
         e12 =
-            (mouseNotifier ++ e12s) |> Element.layers
+            (e12s ++ mouseNotifier) |> Element.layers
 
         mouseNotifier =
             case model.mouse of
@@ -186,12 +185,7 @@ view lift ( e11, e12s, e22, tmini ) model =
                     case model.pos of
                         Just ( x, y ) ->
                             let
-                                enot =
-                                    "("
-                                        ++ toString x
-                                        ++ ","
-                                        ++ toString y
-                                        ++ ")"
+                                enot = toString (x,y)
                                         |> Text.fromString
                                         |> Text.height (2 * tmini)
                                         |> Element.leftAligned
@@ -369,6 +363,9 @@ hlabel lbl graph =
         { graph | harea = t2 :: graph.harea }
 
 
+{--
+-- This crashes at runtime!
+
 vbounds : Graph -> Graph
 vbounds graph =
     let
@@ -377,54 +374,92 @@ vbounds graph =
                 |> Text.fromString
                 |> Text.height graph.tmini
                 |> Element.rightAligned
+                |> Element.container
+                    graph.ex
+                    graph.plot.height
+                    Element.topRight
 
         t3 =
             toString graph.plot.xAxis.modelMin
                 |> Text.fromString
                 |> Text.height graph.tmini
                 |> Element.rightAligned
-
-        e12 =
-            Element.layers
-                [ Element.container graph.ex
-                    graph.plot.height
-                    Element.topRight
-                    t1
-                , Element.container graph.ex
+                |> Element.container
+                    graph.ex
                     graph.plot.height
                     Element.bottomRight
-                    t3
-                ]
+
+        e12 =
+            Element.layers [t1,t3]
     in
         { graph | varea = e12 :: graph.varea }
+--}
 
+vbounds : Graph -> Graph
+vbounds graph =
+    let
+        h = round graph.tmini
+        txt1 = toString graph.plot.xAxis.modelMax
+        w1 = String.length txt1 * h
+
+        t1 =
+            Text.fromString txt1
+                |> Text.height graph.tmini
+                |> C.text
+                |> singleton w1 h
+                |> Element.container
+                    graph.ex
+                    graph.plot.height
+                    Element.topRight
+
+        txt3 = toString graph.plot.xAxis.modelMin
+        w3 = String.length txt1 * h
+
+        t3 =
+            Text.fromString txt3
+                |> Text.height graph.tmini
+                |> C.text
+                |> singleton w3 h
+                |> Element.container
+                    graph.ex
+                    graph.plot.height
+                    Element.bottomRight
+
+        e12 =
+            Element.layers [t1,t3]
+    in
+        { graph | varea = e12 :: graph.varea }
 
 hbounds : Graph -> Graph
 hbounds graph =
     let
+        h = round graph.tmini
+        txt1 = toString graph.plot.tAxis.modelMin
+        w1 = String.length txt1 * h
+
         t1 =
-            toString graph.plot.tAxis.modelMin
-                |> Text.fromString
+            Text.fromString txt1
                 |> Text.height graph.tmini
-                |> Element.centered
-
-        t3 =
-            toString graph.plot.tAxis.modelMax
-                |> Text.fromString
-                |> Text.height graph.tmini
-                |> Element.centered
-
-        e22 =
-            Element.layers
-                [ Element.container graph.plot.width
+                |> C.text
+                |> singleton w1 h
+                |> Element.container graph.plot.width
                     graph.ex
                     Element.topLeft
-                    t1
-                , Element.container graph.plot.width
+
+        txt3 = toString graph.plot.tAxis.modelMax
+        w3 = String.length txt3 * h
+
+        t3 =
+            Text.fromString txt3
+                |> Text.height graph.tmini
+                |> C.text
+                |> singleton w3 h
+                |> Element.container graph.plot.width
                     graph.ex
                     Element.topRight
-                    t3
-                ]
+
+        e22 =
+            Element.layers [t1,t3]
     in
         { graph | harea = e22 :: graph.harea }
 
