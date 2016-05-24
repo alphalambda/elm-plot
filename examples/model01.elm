@@ -47,7 +47,7 @@ position time =
 main =
     App.program
         { init = Simulation.init (position 0) ! Simulation.cmds
-        , update = \msg model -> Simulation.update position msg model ! []
+        , update = Simulation.update position
         , view = Simulation.view
         , subscriptions = Simulation.subs
         }

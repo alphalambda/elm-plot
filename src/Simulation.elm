@@ -66,6 +66,15 @@ type alias Point =
 --- DATA
 -----------------------------------------------------------------------------
 
+type Msg
+    = Plot (Plot.Msg Id)
+    | Tick Float
+    | WindowSize Size
+    | Ignore
+    | Reset
+    | Pause
+    | Resume
+    | Step
 
 type alias Data =
     { time : Float
@@ -80,8 +89,11 @@ type alias Data =
     , xvPoints : List Point
     , yvPoints : List Point
     , winsize : Size
+    , status : Status
+    , message : String
     }
 
+type Status = Paused | Running
 
 type Id
     = XP
@@ -89,7 +101,6 @@ type Id
     | XV
     | YV
     | XY
-
 
 initial =
     { time = 0
@@ -104,6 +115,8 @@ initial =
     , ypPoints = []
     , yvPoints = []
     , winsize = Size 0 0
+    , status = Running
+    , message = ""
     }
 
 
@@ -203,16 +216,8 @@ make_graph range slabel =
 -----------------------------------------------------------------------------
 
 
-type Msg
-    = Plot (Plot.Msg Id)
-    | Tick Float
-    | WindowSize Size
-    | Ignore
-    | Reset
-
-
 subs data =
-    if data.time >= (trange |> snd) then
+    if data.time >= (trange |> snd) || data.status == Paused then
         Window.resizes WindowSize
     else
         Sub.batch
@@ -235,7 +240,10 @@ update position msg data =
     in
         case msg of
             WindowSize size ->
-                { data | winsize = size }
+                { data
+                | winsize = size
+                -- , message = "Window size now " ++ toString size
+                } ! []
 
             Plot msg' ->
                 let
@@ -260,7 +268,8 @@ update position msg data =
                         , ypPlot = ypPlot
                         , xvPlot = xvPlot
                         , yvPlot = yvPlot
-                    }
+                        -- , message = "Plot " ++ Plot.showMsg msg'
+                    } ! []
 
             Tick dt ->
                 let
@@ -296,12 +305,35 @@ update position msg data =
                             }
                 in
                     data'
+                    -- { data' | message = "Tick " ++ toString (Axis.approx 1 dt) }
+                    ! []
 
             Ignore ->
                 data
+                -- {data | message = "Ignore" }
+                ! []
 
             Reset ->
-                reset 0 (position 0) data
+                reset 0 (position 0) data ! []
+                
+            Pause ->
+                { data
+                | status = Paused
+                -- , message = "Pause"
+                } ! []
+                
+            Resume ->
+                { data
+                | status = Running
+                -- , message = "Resume"
+                } ! []
+            
+            Step ->
+                { data
+                | status = Paused
+                -- , message = "Step"
+                }
+                ! [Task.perform (\_ -> Ignore) Tick (Task.succeed 100)]
 
 
 view data =
@@ -318,6 +350,7 @@ view data =
         xyGraph' =
             xyGraph
                 |> Plot.line green data.xyPoints
+                |> Plot.shadow green pos
                 |> Plot.scatter (Plot.dot black) [ pos ]
                 |> Plot.draw
 
@@ -369,18 +402,6 @@ view data =
         graph12 =
             div [] [ graph1, graph2 ]
 
-        reset =
-            div []
-                [ button
-                    [ onClick Reset
-                    , style
-                        [ "padding" => px 5
-                        , "margin" => px 20
-                        ]
-                    ]
-                    [ text "Reset" ]
-                ]
-
         panel =
             let
                 w =
@@ -394,12 +415,20 @@ view data =
 
                 t2 =
                     "Position: " ++ toString (Planum.approx 1 1 pos)
+
+                buttonstyle =
+                    style [ "padding" => px 5, "margin" => px 20 ]
+
             in
                 Flow.down w
                     h
                     [ div [] [ text t1 ]
                     , div [] [ text t2 ]
-                    , reset
+                    , button [ onClick Reset, buttonstyle ] [ text "Reset" ]
+                    , button [ onClick Pause, buttonstyle ] [ text "Pause" ]
+                    , button [ onClick Resume, buttonstyle ] [ text "Resume" ]
+                    , button [ onClick Step, buttonstyle ] [ text "Step" ]
+                    -- , div [] [ text data.message ]
                     ]
 
         graphs =

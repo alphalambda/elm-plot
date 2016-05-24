@@ -7,6 +7,7 @@ module Plot
         , draw
         , getSize
         , Msg
+        , showMsg
         , Model
         , init
         , update
@@ -18,6 +19,9 @@ module Plot
         , vbounds
         , hbounds
         , line
+        , shadow
+        , hshadow
+        , vshadow
         , scatter
         , eval
         , horiz
@@ -62,6 +66,8 @@ type MouseMsg
 type alias Msg a =
     { id : a, mouse : MouseMsg }
 
+showMsg msg =
+    toString msg.id ++ " " ++ toString msg.mouse
 
 type MouseUse
     = MouseEnable
@@ -434,10 +440,10 @@ piece graph p =
     { graph | marea = p :: graph.marea }
 
 
-solid color =
+wide styler color =
     let
         style =
-            C.solid color
+            styler color
     in
         { style | width = 2 }
 
@@ -445,9 +451,29 @@ solid color =
 line color pts graph =
     List.map graph.plot.toView pts
         |> C.path
-        |> C.traced (solid color)
+        |> C.traced (wide C.solid color)
         |> piece graph
 
+
+hshadow color p graph =
+    let
+        (x,y) = graph.plot.toView p
+        z = graph.plot.tAxis.viewMin
+    in
+        C.path [(z,y),(x,y)]
+        |> C.traced (wide C.dotted color)
+        |> piece graph
+
+vshadow color p graph =
+    let
+        (x,y) = graph.plot.toView p
+        z = graph.plot.xAxis.viewMin
+    in
+        C.path [(x,z),(x,y)]
+        |> C.traced (C.dotted color)
+        |> piece graph
+
+shadow color p = hshadow color p >> vshadow color p
 
 scatter : (Float -> C.Form) -> List ( Float, Float ) -> Graph -> Graph
 scatter glyph pts graph =
@@ -479,7 +505,7 @@ horiz graph =
         , ( graph.plot.tAxis.modelMax, 0 )
         ]
         |> C.path
-        |> C.traced (solid black)
+        |> C.traced (wide C.solid black)
         |> piece graph
 
 
@@ -490,7 +516,7 @@ vert graph =
         , ( 0, graph.plot.xAxis.modelMax )
         ]
         |> C.path
-        |> C.traced (solid black)
+        |> C.traced (wide C.solid black)
         |> piece graph
 
 
@@ -502,7 +528,7 @@ axes =
 frame : Graph -> Graph
 frame graph =
     C.rect graph.plot.tAxis.viewRange graph.plot.xAxis.viewRange
-        |> C.outlined (solid black)
+        |> C.outlined (wide C.solid black)
         |> C.move graph.plot.center
         |> piece graph
 
@@ -510,7 +536,7 @@ frame graph =
 grid m n graph =
     let
         g =
-            solid grey
+            wide C.solid grey
 
         tA =
             graph.plot.tAxis
@@ -555,15 +581,15 @@ txt t color r =
 
 
 dot' color r =
-    C.circle r |> C.outlined (solid color)
+    C.circle r |> C.outlined (wide C.solid color)
 
 
 sqr' color r =
-    C.square (2 * r) |> C.outlined (solid color)
+    C.square (2 * r) |> C.outlined (wide C.solid color)
 
 
 dia' color r =
-    C.square (2 * r) |> C.outlined (solid color) |> C.rotate (degrees 45)
+    C.square (2 * r) |> C.outlined (wide C.solid color) |> C.rotate (degrees 45)
 
 
 

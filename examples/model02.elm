@@ -56,16 +56,12 @@ position =
 
 
 main =
-    let
-        update msg model =
-            Simulation.update position msg model ! []
-    in
-        App.program
-            { init = Simulation.init (position 0) ! Simulation.cmds
-            , update = update
-            , view = Simulation.view
-            , subscriptions = Simulation.subs
-            }
+    App.program
+        { init = Simulation.init (position 0) ! Simulation.cmds
+        , update = Simulation.update position
+        , view = Simulation.view
+        , subscriptions = Simulation.subs
+        }
 
 
 
