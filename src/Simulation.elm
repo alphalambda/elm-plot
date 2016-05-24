@@ -1,18 +1,22 @@
 
-module Simulation exposing ( init, update, view, subs
+module Simulation exposing ( init, update, view, subs, cmds
                            , trange, srange
                            , moving
                            )
 
 import Axis
-import Flow
+import Flow exposing (px,(=>))
 import Planum
 import Plot
 
 import AnimationFrame
 import Color exposing (red,green,blue,black)
 import Html exposing (body,h1,div,text,hr,button)
+import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
 import List
+import Task
+import Window exposing (Size)
 
 -----------------------------------------------------------------------------
 --- MODEL DATA
@@ -21,8 +25,8 @@ import List
 width = 300
 height = 300
 
-trange = (0,60)
-srange = (-10,10)
+trange = (0,50)
+srange = (0,10)
 vrange = (-4,4)
 
 type alias Point = (Float,Float)
@@ -47,17 +51,31 @@ type alias Data =
   , ypPoints : List Point
   , xvPoints : List Point
   , yvPoints : List Point
+  , winsize : Size
   }
   
 type Id = XP | YP | XV | YV | XY
 
-init (x,y) =
+initial =
   { time = 0
   , xyPlot = Plot.init XY |> Plot.mouseEnable
   , xpPlot = Plot.init XP |> Plot.mouseEnable
   , ypPlot = Plot.init YP |> Plot.mouseEnable
   , xvPlot = Plot.init XV |> Plot.mouseEnable
   , yvPlot = Plot.init YV |> Plot.mouseEnable
+  , xyPoints = []
+  , xpPoints = []
+  , xvPoints = []
+  , ypPoints = []
+  , yvPoints = []
+  , winsize = Size 0 0
+  }
+
+init pos = reset 0 pos initial
+
+reset t (x,y) data =
+  { data
+  | time = t
   , xyPoints = [(x,y)]
   , xpPoints = [(0,x)]
   , xvPoints = []
@@ -73,13 +91,16 @@ lastPos data = case data.xyPoints of
 --- GRAPHS
 -----------------------------------------------------------------------------
 
-hlabel = "Horizontal Position"
-vlabel = "Vertical Position"
+hlabel = "East-West"
+vlabel = "North-South"
+tpos = "Position"
+tvel = "Velocity"
+label2 l1 l2 = l1 ++ " " ++ l2
 
-xpGraph = make_graph srange hlabel
-ypGraph = make_graph srange vlabel
-xvGraph = make_graph vrange "Horizontal Velocity"
-yvGraph = make_graph vrange "Vertical Velocity"
+xpGraph = make_graph srange (label2 hlabel tpos)
+ypGraph = make_graph srange (label2 vlabel tpos)
+xvGraph = make_graph vrange (label2 hlabel tvel)
+yvGraph = make_graph vrange (label2 vlabel tvel)
 
 xyGraph =
   Plot.size (2*width) (2*height)
@@ -89,16 +110,15 @@ xyGraph =
   |> Plot.grid 4 4
   |> Plot.vbounds
   |> Plot.hbounds
-  |> Plot.hlabel hlabel
-  |> Plot.vlabel vlabel
+  |> Plot.hlabel (label2 hlabel tpos)
+  |> Plot.vlabel (label2 vlabel tpos)
   
 make_graph range slabel =
   Plot.size width height
   |> Plot.ranges trange range
   |> Plot.make
-  |> Plot.grid 6 10
-  |> Plot.axes
   |> Plot.frame
+  |> Plot.grid 5 10
   |> Plot.vlabel slabel
   |> Plot.hlabel "Time"
   |> Plot.vbounds
@@ -108,9 +128,22 @@ make_graph range slabel =
 --- UPDATE and VIEW
 -----------------------------------------------------------------------------
 
-type Msg = Plot (Plot.Msg Id) | Tick Float
+type Msg =
+  Plot (Plot.Msg Id)
+  | Tick Float
+  | WindowSize Size
+  | Ignore | Reset
 
-subs = \_ -> AnimationFrame.diffs Tick
+subs data =
+  if data.time >= (trange |> snd)
+  then Window.resizes WindowSize
+  else
+    Sub.batch 
+      [ Window.resizes WindowSize
+      , AnimationFrame.diffs Tick
+      ]
+
+cmds = [Task.perform (\_ -> Ignore) WindowSize Window.size]
 
 update position msg data =
   let
@@ -118,6 +151,8 @@ update position msg data =
     get g {x,y} = (x,y) |> g.plot.fromScreen |> g.plot.toModel |> approx
   in
     case msg of
+      WindowSize size -> { data | winsize = size }
+
       Plot msg' ->
         let
           xyPlot = Plot.update (get xyGraph) msg' data.xyPlot |> fst
@@ -132,7 +167,7 @@ update position msg data =
           , ypPlot = ypPlot
           , xvPlot = xvPlot
           , yvPlot = yvPlot
-          } ! []
+          }
 
       Tick dt -> 
         let
@@ -155,7 +190,10 @@ update position msg data =
               , yvPoints = (time',vy)::data.yvPoints
               }
         in
-          data' ! []
+          data'
+          
+      Ignore -> data
+      Reset -> reset 0 (position 0) data
 
 view data =
   let
@@ -182,12 +220,26 @@ view data =
     graph1 = Flow.right (g11w + g12w + pad) (g11h + pad) [xpView,ypView]
     graph2 = Flow.right (g11w + g12w + pad) (g21h + pad) [xvView,yvView]
     graph12 = div [] [graph1,graph2]
-    graphs = Flow.right (g11w + g12w + g0w + 2*pad) (g11h + g21h + 2*pad) [graph12,xyView]
+
+    reset = div []
+                [ button [onClick Reset, style ["padding" => px 5, "margin" => px 20]]
+                         [text "Reset"]
+                ]
+
+    panel =
+      Flow.down
+        (data.winsize.width - g11w - g12w - g0w - 2*pad)
+        (g11h + g21h + 2*pad)
+        [ div [] [text <| "Time: " ++ toString (Axis.approx 1 data.time)]
+        , div [] [text <| "Position: " ++ toString (Planum.approx 1 1 pos)]
+        , reset
+        ]
+
+    graphs = Flow.right data.winsize.width (g11h + g21h + 2*pad) [graph12,xyView,panel]
+    -- graphs = Flow.padded(g11w + g12w + g0w + 2*pad) (g11h + g21h + 2*pad) [graph12,xyView]
   in
     body []
       [ header
-      , text <| "Time: " ++ toString (Axis.approx 1 data.time)
-      , text <| " | Position: " ++ toString (Planum.approx 1 1 pos)
       , hr [] []
       , graphs
       , hr [] []
@@ -216,4 +268,3 @@ moving stations time =
       [] -> (0,0)
   in
     loop stations
-

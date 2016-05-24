@@ -14,12 +14,12 @@ type alias Model =
 
 position time =
   let
-    vx = 0.2
-    vy = 50/125
-    g = 1/125
-    time2 = time*time
-    x = vx*time
-    y = vy*time - g*time2
+    r = 4
+    t = time * 36
+    c = cos << degrees
+    s = sin << degrees
+    x = 5 + r * c t
+    y = 5 + r * s t
   in
     (x,y)
 
