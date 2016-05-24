@@ -29,14 +29,16 @@ main =
     graph1 =
       Plot.size 800 400
       |> Plot.ranges x1 y1
-      |> Plot.init ()
+      |> Plot.make
       |> Plot.frame
       |> Plot.horiz
       |> Plot.line blue series1
       |> Plot.line red series2
       |> Plot.scatter (Plot.txt "x" green) series3
 
+    graphModel = Plot.init ()
+    
   in
     body [] [ h1 [] [text "Sample plot"]
-            , Plot.view identity graph1
+            , Plot.view identity (Plot.draw graph1) graphModel
             ]
