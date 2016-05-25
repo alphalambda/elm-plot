@@ -14,9 +14,11 @@ type alias Model =
     , vel : Point
     }
 
-ranges = { t = (0,50)
-         , s = (0,10)
-         , v = (-4,4)
+range (t0,t1) = {min=t0,max=t1}
+
+ranges = { t = range (0,50)
+         , s = range (0,10)
+         , v = range (-4,4)
          }
 
 position time =

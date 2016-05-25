@@ -23,6 +23,7 @@ module Plot
         , hshadow
         , vshadow
         , scatter
+        , poly
         , eval
         , horiz
         , vert
@@ -521,6 +522,13 @@ scatter glyph pts graph =
             |> C.toForm
             |> piece graph
 
+
+poly : List (Float,Float) -> Color.Color -> Graph -> Graph
+poly verts color graph =
+    List.map graph.plot.toView verts
+        |> C.polygon
+        |> C.filled color
+        |> piece graph
 
 eval color n f graph =
     let

@@ -8,16 +8,13 @@ import Html.App as App
 type alias Point =
     ( Float, Float )
 
+range (t0,t1) = {min=t0,max=t1}
 
-type alias Model =
-    { pos : Point
-    , vel : Point
-    }
-
-ranges = { t = (0,50)
-         , s = (0,10)
-         , v = (-4,4)
+ranges = { t = range (0,50)
+         , s = range (0,10)
+         , v = range (-4,4)
          }
+
 
 position time =
     let

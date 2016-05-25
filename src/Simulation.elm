@@ -1,6 +1,7 @@
 module Simulation
     exposing
-        ( init
+        ( Range
+        , init
         , update
         , view
         , subs
@@ -37,6 +38,9 @@ height =
 type alias Point =
     ( Float, Float )
 
+type alias Range =
+    { min : Float, max : Float }
+
 -----------------------------------------------------------------------------
 --- DATA
 -----------------------------------------------------------------------------
@@ -53,9 +57,9 @@ type Msg
 
 type alias Data =
     -- Parameters
-    { trange : (Float,Float)
-    , srange : (Float,Float)
-    , vrange : (Float,Float)
+    { trange : Range
+    , srange : Range
+    , vrange : Range
     
     -- Model variables
     , time : Float
@@ -92,8 +96,9 @@ type Id
     | YV
     | XY
 
+initial : (Range,Range,Range) -> Data
 initial (t,s,v) =
-    { time = fst t
+    { time = t.min
     , xyPlot = Plot.init XY |> Plot.mouseEnable
     , xpPlot = Plot.init XP |> Plot.mouseEnable
     , ypPlot = Plot.init YP |> Plot.mouseEnable
@@ -119,7 +124,7 @@ initial (t,s,v) =
 
 
 init {t,s,v} pos =
-    initial (t,s,v) |> reset (fst t) pos
+    initial (t,s,v) |> reset t.min pos
 
 
 reset t0 ( x, y ) data =
@@ -171,20 +176,23 @@ label2 l1 l2 =
     l1 ++ " " ++ l2
 
 xyGraph srange =
-    Plot.size (2 * width) (2 * height)
-        |> Plot.ranges srange srange
-        |> Plot.make
-        |> Plot.frame
-        |> Plot.grid 4 4
-        |> Plot.vbounds
-        |> Plot.hbounds
-        |> Plot.hlabel (label2 hlabel tpos)
-        |> Plot.vlabel (label2 vlabel tpos)
+    let
+        srange' = (srange.min,srange.max)
+    in
+        Plot.size (2 * width) (2 * height)
+            |> Plot.ranges srange' srange'
+            |> Plot.make
+            |> Plot.frame
+            |> Plot.grid 4 4
+            |> Plot.vbounds
+            |> Plot.hbounds
+            |> Plot.hlabel (label2 hlabel tpos)
+            |> Plot.vlabel (label2 vlabel tpos)
 
-
+make_graph : Range -> Range -> String -> Plot.Graph
 make_graph trange range slabel =
     Plot.size width height
-        |> Plot.ranges trange range
+        |> Plot.ranges (trange.min,trange.max) (range.min,range.max)
         |> Plot.make
         |> Plot.frame
         |> Plot.grid 5 10
@@ -265,7 +273,7 @@ update position msg data =
                             Finished -> data
                             Running ->
                                 if
-                                    data.time >= snd data.trange
+                                    data.time >= data.trange.max
                                 then
                                     { data | status = Finished } 
                                 else
@@ -280,7 +288,7 @@ update position msg data =
 
             Reset ->
                 let
-                    t0 = fst data.trange
+                    t0 = data.trange.min
                 in
                     reset t0 (position t0) data ! []
                 
