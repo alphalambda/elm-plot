@@ -398,7 +398,7 @@ vbounds graph =
 vbounds : Graph -> Graph
 vbounds graph =
     let
-        h = round graph.tmini
+        h = 2 + round graph.tmini
         txt1 = toString graph.plot.xAxis.modelMax
         w1 = String.length txt1 * h
 
@@ -433,7 +433,7 @@ vbounds graph =
 hbounds : Graph -> Graph
 hbounds graph =
     let
-        h = round graph.tmini
+        h = 2 + round graph.tmini
         txt1 = toString graph.plot.tAxis.modelMin
         w1 = String.length txt1 * h
 

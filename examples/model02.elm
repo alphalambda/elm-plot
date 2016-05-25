@@ -7,6 +7,10 @@ import Html.App as App
 (=>) =
     (,)
 
+ranges = { t = (0,50)
+         , s = (0,10)
+         , v = (-4,4)
+         }
 
 position1 =
     Simulation.moving
@@ -46,7 +50,7 @@ position4 =
 
 
 position =
-    position1
+    position3
 
 
 
@@ -57,7 +61,7 @@ position =
 
 main =
     App.program
-        { init = Simulation.init (position 0) ! Simulation.cmds
+        { init = Simulation.init ranges (position 0) ! Simulation.cmds
         , update = Simulation.update position
         , view = Simulation.view
         , subscriptions = Simulation.subs

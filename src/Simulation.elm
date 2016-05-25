@@ -5,8 +5,6 @@ module Simulation
         , view
         , subs
         , cmds
-        , trange
-        , srange
         , moving
         )
 
@@ -36,31 +34,8 @@ width =
 height =
     300
 
-
-trange =
-    ( 0, 50 )
-
-
-srange =
-    ( 0, 10 )
-
-
-vrange =
-    ( -4, 4 )
-
-
 type alias Point =
     ( Float, Float )
-
-
-(+|) ( x1, y1 ) ( x2, y2 ) =
-    ( x1 + x2, y1 + y2 )
-
-
-(-|) ( x1, y1 ) ( x2, y2 ) =
-    ( x1 - x2, y1 - y2 )
-
-
 
 -----------------------------------------------------------------------------
 --- DATA
@@ -77,23 +52,38 @@ type Msg
     | Step
 
 type alias Data =
-    { time : Float
+    -- Parameters
+    { trange : (Float,Float)
+    , srange : (Float,Float)
+    , vrange : (Float,Float)
+    
+    -- Model variables
+    , time : Float
+    , xyPoints : List Point
+    
+    -- Analysis
+    , xpPoints : List Point
+    , ypPoints : List Point
+    , xvPoints : List Point
+    , yvPoints : List Point
+
+    -- User interface
     , xyPlot : Plot.Model Id
     , xpPlot : Plot.Model Id
     , xvPlot : Plot.Model Id
     , ypPlot : Plot.Model Id
     , yvPlot : Plot.Model Id
-    , xyPoints : List Point
-    , xpPoints : List Point
-    , ypPoints : List Point
-    , xvPoints : List Point
-    , yvPoints : List Point
+    , xyGraph : Plot.Graph
+    , xpGraph : Plot.Graph
+    , xvGraph : Plot.Graph
+    , ypGraph : Plot.Graph
+    , yvGraph : Plot.Graph
     , winsize : Size
     , status : Status
     , message : String
     }
 
-type Status = Paused | Running
+type Status = Paused | Running | Finished
 
 type Id
     = XP
@@ -102,8 +92,8 @@ type Id
     | YV
     | XY
 
-initial =
-    { time = 0
+initial (t,s,v) =
+    { time = fst t
     , xyPlot = Plot.init XY |> Plot.mouseEnable
     , xpPlot = Plot.init XP |> Plot.mouseEnable
     , ypPlot = Plot.init YP |> Plot.mouseEnable
@@ -114,24 +104,35 @@ initial =
     , xvPoints = []
     , ypPoints = []
     , yvPoints = []
+    , trange = t
+    , srange = s
+    , vrange = v
+    , xyGraph = xyGraph s
+    , xpGraph = make_graph t s (label2 hlabel tpos)
+    , ypGraph = make_graph t s (label2 vlabel tpos)
+    , xvGraph = make_graph t v (label2 hlabel tvel)
+    , yvGraph = make_graph t v (label2 vlabel tvel)
     , winsize = Size 0 0
     , status = Running
     , message = ""
     }
 
 
-init pos =
-    reset 0 pos initial
+init {t,s,v} pos =
+    initial (t,s,v) |> reset (fst t) pos
 
 
-reset t ( x, y ) data =
+reset t0 ( x, y ) data =
     { data
-        | time = t
+        | time = t0
         , xyPoints = [ ( x, y ) ]
-        , xpPoints = [ ( 0, x ) ]
+        , xpPoints = [ ( t0, x ) ]
         , xvPoints = []
-        , ypPoints = [ ( 0, y ) ]
+        , ypPoints = [ ( t0, y ) ]
         , yvPoints = []
+        , status =
+            if data.status == Finished then Running
+            else data.status
     }
 
 
@@ -169,24 +170,7 @@ tvel =
 label2 l1 l2 =
     l1 ++ " " ++ l2
 
-
-xpGraph =
-    make_graph srange (label2 hlabel tpos)
-
-
-ypGraph =
-    make_graph srange (label2 vlabel tpos)
-
-
-xvGraph =
-    make_graph vrange (label2 hlabel tvel)
-
-
-yvGraph =
-    make_graph vrange (label2 vlabel tvel)
-
-
-xyGraph =
+xyGraph srange =
     Plot.size (2 * width) (2 * height)
         |> Plot.ranges srange srange
         |> Plot.make
@@ -198,7 +182,7 @@ xyGraph =
         |> Plot.vlabel (label2 vlabel tpos)
 
 
-make_graph range slabel =
+make_graph trange range slabel =
     Plot.size width height
         |> Plot.ranges trange range
         |> Plot.make
@@ -209,22 +193,19 @@ make_graph range slabel =
         |> Plot.vbounds
         |> Plot.hbounds
 
-
-
 -----------------------------------------------------------------------------
 --- UPDATE and VIEW
 -----------------------------------------------------------------------------
 
 
-subs data =
-    if data.time >= (trange |> snd) || data.status == Paused then
-        Window.resizes WindowSize
-    else
+subs data = case data.status of
+    Paused -> Window.resizes WindowSize
+    Finished -> Window.resizes WindowSize
+    Running ->
         Sub.batch
             [ Window.resizes WindowSize
             , AnimationFrame.diffs Tick
             ]
-
 
 cmds =
     [ Task.perform (\_ -> Ignore) WindowSize Window.size ]
@@ -248,19 +229,24 @@ update position msg data =
             Plot msg' ->
                 let
                     xyPlot =
-                        Plot.update (get xyGraph) msg' data.xyPlot |> fst
+                        Plot.update (get data.xyGraph) msg' data.xyPlot
+                        |> fst
 
                     xpPlot =
-                        Plot.update (get xpGraph) msg' data.xpPlot |> fst
+                        Plot.update (get data.xpGraph) msg' data.xpPlot
+                        |> fst
 
                     ypPlot =
-                        Plot.update (get ypGraph) msg' data.ypPlot |> fst
+                        Plot.update (get data.ypGraph) msg' data.ypPlot
+                        |> fst
 
                     xvPlot =
-                        Plot.update (get xvGraph) msg' data.xvPlot |> fst
+                        Plot.update (get data.xvGraph) msg' data.xvPlot
+                        |> fst
 
                     yvPlot =
-                        Plot.update (get yvGraph) msg' data.yvPlot |> fst
+                        Plot.update (get data.yvGraph) msg' data.yvPlot
+                        |> fst
                 in
                     { data
                         | xyPlot = xyPlot
@@ -273,48 +259,30 @@ update position msg data =
 
             Tick dt ->
                 let
-                    dt' =
-                        dt / 1000
-
-                    time' =
-                        data.time + dt'
-
-                    ( x, y ) =
-                        lastPos data
-
-                    ( x', y' ) =
-                        position time'
-
-                    vx =
-                        (x' - x) / dt'
-
-                    vy =
-                        (y' - y) / dt'
-
                     data' =
-                        if data.time >= (trange |> snd) then
-                            data
-                        else
-                            { data
-                                | time = time'
-                                , xyPoints = ( x', y' ) :: data.xyPoints
-                                , xpPoints = ( time', x' ) :: data.xpPoints
-                                , ypPoints = ( time', y' ) :: data.ypPoints
-                                , xvPoints = ( time', vx ) :: data.xvPoints
-                                , yvPoints = ( time', vy ) :: data.yvPoints
-                            }
+                        case data.status of
+                            Paused -> data
+                            Finished -> data
+                            Running ->
+                                if
+                                    data.time >= snd data.trange
+                                then
+                                    { data | status = Finished } 
+                                else
+                                    step position (dt/1000) data
                 in
-                    data'
-                    -- { data' | message = "Tick " ++ toString (Axis.approx 1 dt) }
-                    ! []
-
+                    data' ! []
+                    
             Ignore ->
                 data
                 -- {data | message = "Ignore" }
                 ! []
 
             Reset ->
-                reset 0 (position 0) data ! []
+                let
+                    t0 = fst data.trange
+                in
+                    reset t0 (position t0) data ! []
                 
             Pause ->
                 { data
@@ -329,12 +297,41 @@ update position msg data =
                 } ! []
             
             Step ->
-                { data
-                | status = Paused
-                -- , message = "Step"
-                }
-                ! [Task.perform (\_ -> Ignore) Tick (Task.succeed 100)]
+                step position 0.1
+                    { data
+                    | status = Paused
+                    -- , message = "Step"
+                    } ! []
 
+step position dt data =
+    let
+        time' =
+            data.time + dt
+
+        ( x, y ) =
+            lastPos data
+
+        ( x', y' ) =
+            position time'
+
+        vx =
+            (x' - x) / dt
+
+        vy =
+            (y' - y) / dt
+
+        data' =
+            { data
+            | time = time'
+            , xyPoints = ( x', y' ) :: data.xyPoints
+            , xpPoints = ( time', x' ) :: data.xpPoints
+            , ypPoints = ( time', y' ) :: data.ypPoints
+            , xvPoints = ( time', vx ) :: data.xvPoints
+            , yvPoints = ( time', vy ) :: data.yvPoints
+            }
+    in
+        data'
+        -- { data' | message = "Tick " ++ toString (Axis.approx 1 dt) }
 
 view data =
     let
@@ -348,23 +345,27 @@ view data =
             h1 [] [ text "Simulation" ]
 
         xyGraph' =
-            xyGraph
+            data.xyGraph
                 |> Plot.line green data.xyPoints
                 |> Plot.shadow green pos
                 |> Plot.scatter (Plot.dot black) [ pos ]
                 |> Plot.draw
 
         xpGraph' =
-            xpGraph |> Plot.line red data.xpPoints |> Plot.draw
+            data.xpGraph
+                |> Plot.line red data.xpPoints |> Plot.draw
 
         ypGraph' =
-            ypGraph |> Plot.line blue data.ypPoints |> Plot.draw
+            data.ypGraph
+                |> Plot.line blue data.ypPoints |> Plot.draw
 
         xvGraph' =
-            xvGraph |> Plot.line red data.xvPoints |> Plot.draw
+            data.xvGraph
+                |> Plot.line red data.xvPoints |> Plot.draw
 
         yvGraph' =
-            yvGraph |> Plot.line blue data.yvPoints |> Plot.draw
+            data.yvGraph
+                |> Plot.line blue data.yvPoints |> Plot.draw
 
         xyView =
             Plot.view Plot xyGraph' data.xyPlot
@@ -420,8 +421,7 @@ view data =
                     style [ "padding" => px 5, "margin" => px 20 ]
 
             in
-                Flow.down w
-                    h
+                Flow.down w h
                     [ div [] [ text t1 ]
                     , div [] [ text t2 ]
                     , button [ onClick Reset, buttonstyle ] [ text "Reset" ]
@@ -453,7 +453,6 @@ view data =
 -----------------------------------------------------------------------------
 --- MOVING AT CONSTANT SPEED
 -----------------------------------------------------------------------------
-
 
 moving stations time =
     let
