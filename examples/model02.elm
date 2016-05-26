@@ -41,22 +41,29 @@ hit_wall blocks r (x,y) =
     in
         List.any (collided block) blocks
 
+range : (Float,Float) -> Simulation.Range
 range (t0,t1) = {min=t0,max=t1}
 
-ranges = { t = range (0,50)
-         , s = range (0,10)
-         , v = range (-4,4)
-         }
+opts : Simulation.Settings
+opts = { t = range (0,50)
+       , s = range (0,10)
+       , v = range (-4,4)
+       , width = 320
+       , height = 320
+       , pos = position 0
+       }
 
 position1 =
     Simulation.moving
-        [ 5 => ( 5, 7 )
+        [ 0 => ( 5, 7 )
+        , 5 => ( 9, 9 )
         , 10 => ( 9, 9 )
         , 12 => (3,7)
         , 15 => (7,3)
         , 16 => (7,4)
         , 17 => (7,6)
         , 20 => ( 7, 3 )
+        , 22 => ( 7, 3 )
         , 30 => ( 9, 7 )
         , 45 => ( 3, 8 )
         ]
@@ -101,7 +108,7 @@ position =
 
 main =
     App.program
-        { init = Simulation.init ranges (position 0) ! Simulation.cmds
+        { init = Simulation.init opts ! Simulation.cmds
         , update = Simulation.update position
         , view = Simulation.view
         , subscriptions = Simulation.subs

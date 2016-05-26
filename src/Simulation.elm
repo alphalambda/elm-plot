@@ -1,9 +1,11 @@
 module Simulation
     exposing
-        ( Range
+        ( Settings
+        , Range
         , init
         , update
         , view
+        , mainview
         , subs
         , cmds
         , moving
@@ -24,26 +26,14 @@ import Window exposing (Size)
 
 
 -----------------------------------------------------------------------------
---- MODEL DATA
+--- MODEL
 -----------------------------------------------------------------------------
-
-
-width =
-    300
-
-
-height =
-    300
 
 type alias Point =
     ( Float, Float )
 
 type alias Range =
     { min : Float, max : Float }
-
------------------------------------------------------------------------------
---- DATA
------------------------------------------------------------------------------
 
 type Msg
     = Plot (Plot.Msg Id)
@@ -96,9 +86,18 @@ type Id
     | YV
     | XY
 
-initial : (Range,Range,Range) -> Data
-initial (t,s,v) =
-    { time = t.min
+type alias Settings =
+    { width : Float
+    , height : Float
+    , t : Range
+    , s : Range
+    , v : Range
+    , pos : Point
+    }
+
+initial : Settings -> Data
+initial d =
+    { time = d.t.min
     , xyPlot = Plot.init XY |> Plot.mouseEnable
     , xpPlot = Plot.init XP |> Plot.mouseEnable
     , ypPlot = Plot.init YP |> Plot.mouseEnable
@@ -109,23 +108,22 @@ initial (t,s,v) =
     , xvPoints = []
     , ypPoints = []
     , yvPoints = []
-    , trange = t
-    , srange = s
-    , vrange = v
-    , xyGraph = xyGraph s
-    , xpGraph = make_graph t s (label2 hlabel tpos)
-    , ypGraph = make_graph t s (label2 vlabel tpos)
-    , xvGraph = make_graph t v (label2 hlabel tvel)
-    , yvGraph = make_graph t v (label2 vlabel tvel)
+    , trange = d.t
+    , srange = d.s
+    , vrange = d.v
+    , xyGraph = xyGraph d.width d.height d.s
+    , xpGraph = make_graph d.width d.height d.t d.s (label2 hlabel tpos)
+    , ypGraph = make_graph d.width d.height d.t d.s (label2 vlabel tpos)
+    , xvGraph = make_graph d.width d.height d.t d.v (label2 hlabel tvel)
+    , yvGraph = make_graph d.width d.height d.t d.v (label2 vlabel tvel)
     , winsize = Size 0 0
     , status = Running
     , message = ""
     }
 
-
-init {t,s,v} pos =
-    initial (t,s,v) |> reset t.min pos
-
+init : Settings -> Data
+init settings =
+    initial settings |> reset settings.t.min settings.pos
 
 reset t0 ( x, y ) data =
     { data
@@ -175,7 +173,7 @@ tvel =
 label2 l1 l2 =
     l1 ++ " " ++ l2
 
-xyGraph srange =
+xyGraph width height srange =
     let
         srange' = (srange.min,srange.max)
     in
@@ -189,8 +187,8 @@ xyGraph srange =
             |> Plot.hlabel (label2 hlabel tpos)
             |> Plot.vlabel (label2 vlabel tpos)
 
-make_graph : Range -> Range -> String -> Plot.Graph
-make_graph trange range slabel =
+make_graph : Float -> Float -> Range -> Range -> String -> Plot.Graph
+make_graph width height trange range slabel =
     Plot.size width height
         |> Plot.ranges (trange.min,trange.max) (range.min,range.max)
         |> Plot.make
@@ -222,10 +220,10 @@ cmds =
 update position msg data =
     let
         approx =
-            Planum.approx 2 2
+            Planum.approx 1 1
 
         get g { x, y } =
-            ( x, y ) |> g.plot.fromScreen |> g.plot.toModel |> approx
+            g.plot.fromScreen (x,y) |> g.plot.toModel |> approx
     in
         case msg of
             WindowSize size ->
@@ -257,11 +255,11 @@ update position msg data =
                         |> fst
                 in
                     { data
-                        | xyPlot = xyPlot
-                        , xpPlot = xpPlot
+                        | xpPlot = xpPlot
                         , ypPlot = ypPlot
                         , xvPlot = xvPlot
                         , yvPlot = yvPlot
+                        , xyPlot = xyPlot
                         -- , message = "Plot " ++ Plot.showMsg msg'
                     } ! []
 
@@ -305,11 +303,13 @@ update position msg data =
                 } ! []
             
             Step ->
-                step position 0.1
-                    { data
-                    | status = Paused
-                    -- , message = "Step"
-                    } ! []
+                let
+                    data' = case data.status of
+                        Finished -> data
+                        Running -> {data | status = Paused }
+                        Paused ->  step position 0.1 data
+                in
+                    data' ! []
 
 step position dt data =
     let
@@ -349,15 +349,18 @@ view data =
         pos =
             lastPos data
 
-        header =
-            h1 [] [ text "Simulation" ]
-
         xyGraph' =
             data.xyGraph
                 |> Plot.line green data.xyPoints
                 |> Plot.shadow green pos
                 |> Plot.scatter (Plot.dot black) [ pos ]
                 |> Plot.draw
+
+        -- xyGraph'' = Plot.draw data.xyGraph
+        -- xpGraph'' = Plot.draw data.xpGraph
+        -- xvGraph'' = Plot.draw data.xvGraph
+        -- ypGraph'' = Plot.draw data.ypGraph
+        -- yvGraph'' = Plot.draw data.yvGraph
 
         xpGraph' =
             data.xpGraph
@@ -425,20 +428,22 @@ view data =
                 t2 =
                     "Position: " ++ toString (Planum.approx 1 1 pos)
 
-                buttonstyle =
-                    style [ "padding" => px 5, "margin" => px 20 ]
+                cstyle =
+                    [ "padding" => px 5, "margin" => px 20 ]
 
+                font =
+                    [ "font-size" => "200%", "font-weight" => "bold"]
             in
                 Flow.down w h
-                    [ div [] [ text t1 ]
-                    , div [] [ text t2 ]
-                    , button [ onClick Reset, buttonstyle ] [ text "Reset" ]
+                    [ div [style <| cstyle ++ font] [ text t1 ]
+                    , div [style <| cstyle ++ font] [ text t2 ]
+                    , button [ onClick Reset,style cstyle ] [ text "Reset" ]
                     , if data.status == Paused
                       then
-                        button [onClick Resume,buttonstyle] [ text "Resume" ]
+                        button [onClick Resume,style cstyle] [ text "Resume" ]
                       else
-                        button [ onClick Pause, buttonstyle ] [ text "Pause" ]
-                    , button [ onClick Step, buttonstyle ] [ text "Step" ]
+                        button [ onClick Pause,style cstyle ] [ text "Pause" ]
+                    , button [ onClick Step, style cstyle ] [ text "Step" ]
                     -- , div [] [ text data.message ]
                     ]
 
@@ -449,14 +454,15 @@ view data =
             in
                 Flow.right data.winsize.width h [ graph12, xyView, panel ]
     in
-        body []
-            [ header
-            , hr [] []
-            , graphs
-            , hr [] []
-            ]
+        graphs
 
-
+mainview data =
+    body []
+         [ h1 [] [ text "Simulation" ]
+         , hr [] []
+         , view data
+         , hr [] []
+         ]
 
 -----------------------------------------------------------------------------
 --- MOVING AT CONSTANT SPEED
