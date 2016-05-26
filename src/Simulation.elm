@@ -10,7 +10,6 @@ module Simulation
         , mainview
         , subs
         , cmds
-        , lastPos
         )
 
 import Axis
@@ -55,6 +54,8 @@ type alias Model =
     
     -- Model variables
     , time : Float
+    , position : Point
+    , velocity : Point
     , xyPoints : List Point
     
     -- Analysis
@@ -100,6 +101,8 @@ type alias Settings =
 initial : Settings -> Model
 initial d =
     { time = d.t.min
+    , position = (0,0)
+    , velocity = (0,0)
     , xyPlot = Plot.init XY |> Plot.mouseEnable
     , xpPlot = Plot.init XP |> Plot.mouseEnable
     , ypPlot = Plot.init YP |> Plot.mouseEnable
@@ -127,6 +130,8 @@ initial d =
 reset t0 ( x, y ) model =
     { model
         | time = t0
+        , position = (x,y)
+        , velocity = (0,0)
         , xyPoints = [ ( x, y ) ]
         , xpPoints = [ ( t0, x ) ]
         , xvPoints = []
@@ -138,6 +143,7 @@ reset t0 ( x, y ) model =
     }
 
 
+{-
 lastPos model =
     case model.xyPoints of
         ( x, y ) :: _ ->
@@ -145,8 +151,7 @@ lastPos model =
 
         [] ->
             ( 0, 0 )
-
-
+-}
 
 -----------------------------------------------------------------------------
 --- GRAPHS
@@ -218,11 +223,8 @@ cmds =
 
 update position msg model =
     let
-        approx =
-            Planum.approx 1 1
-
         get g { x, y } =
-            g.plot.fromScreen (x,y) |> g.plot.toModel |> approx
+            g.plot.fromScreen (x,y)
     in
         case msg of
             WindowSize size ->
@@ -315,8 +317,7 @@ step position dt model =
         time' =
             model.time + dt
 
-        ( x, y ) =
-            lastPos model
+        ( x, y ) = model.position
 
         ( x', y' ) =
             position time'
@@ -330,6 +331,8 @@ step position dt model =
         model' =
             { model
             | time = time'
+            , position = (x',y')
+            , velocity = (vx,vy)
             , xyPoints = ( x', y' ) :: model.xyPoints
             , xpPoints = ( time', x' ) :: model.xpPoints
             , ypPoints = ( time', y' ) :: model.ypPoints
@@ -346,7 +349,7 @@ view model =
             60
 
         pos =
-            lastPos model
+            model.position
 
         xyGraph' =
             model.xyGraph
@@ -427,6 +430,9 @@ view model =
                 t2 =
                     "Position: " ++ toString (Planum.approx 1 1 pos)
 
+                t3 =
+                    "Velocity: " ++ toString (Planum.approx 2 2 model.velocity)
+
                 cstyle =
                     [ "padding" => px 5, "margin" => px 20 ]
 
@@ -436,6 +442,7 @@ view model =
                 Flow.down w h
                     [ div [style <| cstyle ++ font] [ text t1 ]
                     , div [style <| cstyle ++ font] [ text t2 ]
+                    , div [style <| cstyle ++ font] [ text t3 ]
                     , button [ onClick Reset,style cstyle ] [ text "Reset" ]
                     , if model.status == Paused
                       then

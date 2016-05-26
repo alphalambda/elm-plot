@@ -108,7 +108,7 @@ type alias Msg = Simulation.Msg
 -----------------------------------------------------------------------------
 
 crashed model =
-    Block.hit_wall model.blocks 0.1 (Simulation.lastPos model.simu)
+    Block.hit_wall model.blocks 0.1 model.simu.position
 
 update msg model =
     if model.crashed || crashed model

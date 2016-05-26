@@ -126,25 +126,25 @@ mouseDisable model =
     { model | mouse = MouseDisable }
 
 
-view lift ( e11, e12s, e22, tmini ) model =
+view lift g model =
     let
         width =
-            Element.widthOf e11 + Element.widthOf e12
+            Element.widthOf g.e11 + Element.widthOf e12
 
         e1h =
             Element.heightOf e12
 
         e2h =
-            Element.heightOf e22
+            Element.heightOf g.e22
 
         e =
             div [] [ e1, e2 ]
 
         e1 =
-            Flow.right width e1h [ Element.toHtml e11, graph e12 ]
+            Flow.right width e1h [ Element.toHtml g.e11, graph e12 ]
 
         e2 =
-            Flow.left width e2h [ Element.toHtml e22 ]
+            Flow.left width e2h [ Element.toHtml g.e22 ]
 
         graph elem =
             let
@@ -178,7 +178,7 @@ view lift ( e11, e12s, e22, tmini ) model =
                 div mouseListeners [ Element.toHtml elem ]
 
         e12 =
-            (e12s ++ mouseNotifier) |> Element.layers
+            (g.e12s ++ mouseNotifier) |> Element.layers
 
         mouseNotifier =
             case model.mouse of
@@ -189,12 +189,23 @@ view lift ( e11, e12s, e22, tmini ) model =
                     case model.pos of
                         Just ( x, y ) ->
                             let
-                                enot = toString (x,y)
-                                        |> Text.fromString
-                                        |> Text.height (2 * tmini)
-                                        |> Element.leftAligned
+                                mouse1 = g.toModel (x,y)
+                                         |> toString
+                                         |> Text.fromString
+                                         |> Text.height (2 * g.tmini)
+                                         |> Element.leftAligned
+
+                                mouse21 = C.path [(g.x0,y),(x-10,y)]
+                                          |> C.traced (wide C.dashed black)
+                                          
+                                mouse22 = C.path [(x,g.y0),(x,y-10)]
+                                          |> C.traced (wide C.dashed black)
+                                          
+                                mouse2 = C.collage g.pwidth g.pheight 
+                                            [mouse21,mouse22]
+                                
                             in
-                                [ enot ]
+                                [ mouse1, mouse2 ]
 
                         Nothing ->
                             []
@@ -300,28 +311,30 @@ draw graph =
 
         e2h =
             Element.heightOf e22
+            
+        toModel = graph.plot.toModel >> Planum.approx 1 1
     in
-        ( e11, e12s, e22, graph.tmini )
+        { e11 = e11
+        , e12s = e12s
+        , e22 = e22
+        , tmini = graph.tmini
+        , pwidth = width
+        , pheight = height
+        , x0 = graph.plot.tAxis.viewMin
+        , y0 = graph.plot.xAxis.viewMin
+        , toModel = toModel
+        }
 
-
-getSize ( e11, e12s, e22, tmini ) =
+getSize g =
     let
         w =
-            Element.widthOf e11 + e12w
+            Element.widthOf g.e11 + g.pwidth
 
         h =
-            e12h + Element.heightOf e22
+            g.pheight + Element.heightOf g.e22
 
-        ( e12w, e12h ) =
-            case e12s of
-                e12 :: _ ->
-                    ( Element.widthOf e12, Element.heightOf e12 )
-
-                [] ->
-                    ( 0, 0 )
     in
         ( w, h )
-
 
 revMap f l =
     let

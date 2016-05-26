@@ -74,7 +74,7 @@ type alias Msg = Simulation.Msg
 -----------------------------------------------------------------------------
 
 crashed model =
-    Block.hit_wall model.blocks 0.1 (Simulation.lastPos model.simu)
+    Block.hit_wall model.blocks 0.1 model.simu.position
 
 update msg model =
     if model.crashed || crashed model
@@ -87,12 +87,11 @@ update msg model =
 
 view model =
     let
-        model' =
-            if model.crashed
-            then paint_blocks red model
-            else paint_blocks black model
+        color = if model.crashed then red else black
     in
-        Simulation.view model'.simu
+        paint_blocks color model
+        |> .simu
+        |> Simulation.view
 
 -----------------------------------------------------------------------------
 --- SUBS
