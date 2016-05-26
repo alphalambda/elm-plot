@@ -1,45 +1,12 @@
 module Main exposing (..)
 
+import Block exposing (Block)
+import Moving
+import Plot
 import Simulation
+
+import Color exposing (red,green,blue,black)
 import Html.App as App
-
-
-(=>) =
-    (,)
-
-type alias Point =
-    (Float, Float)
-
-type alias Block =
-    { top : Float
-    , left : Float
-    , right : Float
-    , bot : Float
-    }
-
-type alias Model =
-    { blocks : List Block
-    }
-
-inside block (x,y) =
-    block.left <= x && x <= block.right
-        && block.bot <= y && y <= block.top
-
-separated block1 block2 =
-    block1.bot > block2.top || block1.top < block2.bot
-        || block1.right < block2.left || block1.left > block2.right
-
-collided block = not << separated block
-
-hit_wall blocks r (x,y) =
-    let
-        block = { top = y+r
-                , left = x-r
-                , right = x+r
-                , bot = y-r
-                }
-    in
-        List.any (collided block) blocks
 
 opts : Simulation.Settings
 opts = { t = range (0,50)
@@ -51,11 +18,41 @@ opts = { t = range (0,50)
        }
 
 -----------------------------------------------------------------------------
+--- MODEL
+-----------------------------------------------------------------------------
+
+type alias Model =
+    { blocks : List Block
+    , simu : Simulation.Model
+    , crashed : Bool
+    }
+
+init =
+    let
+        simu = Simulation.initial opts
+        blocks = []
+    in
+        { blocks = blocks
+        , simu = simu
+        , crashed = False
+        }
+        ! Simulation.cmds
+
+paint_blocks color model =
+    let
+        xyGraph = model.simu.xyGraph
+            |> Plot.blocks model.blocks color
+        model_simu = model.simu
+        simu = { model_simu | xyGraph = xyGraph }
+    in
+        { model | simu = simu }
+
+-----------------------------------------------------------------------------
 --- Data
 -----------------------------------------------------------------------------
 
 position1 =
-    Simulation.moving
+    Moving.moving
         [ 0 => ( 5, 7 )
         , 5 => ( 9, 9 )
         , 10 => ( 9, 9 )
@@ -71,14 +68,14 @@ position1 =
 
 
 position2 =
-    Simulation.moving
+    Moving.moving
         [ 3 => ( 2, 5 )
         , 4 => ( 2, 9 )
         ]
 
 
 position3 =
-    Simulation.moving
+    Moving.moving
         [ 1 => ( 1, 10 )
         , 2 => ( 2, 9 )
         , 3 => ( 2, 7 )
@@ -90,7 +87,7 @@ position3 =
 
 
 position4 =
-    Simulation.moving
+    Moving.moving
         [ 5 => ( 0, 0 )
         , 10 => ( 5, 0 )
         , 15 => ( 0, 0 )
@@ -101,16 +98,43 @@ position =
     position1
 
 -----------------------------------------------------------------------------
---- TEA
+--- MSG
 -----------------------------------------------------------------------------
 
-init = Simulation.initial opts ! Simulation.cmds
+type alias Msg = Simulation.Msg
 
-update = Simulation.update position
+-----------------------------------------------------------------------------
+--- VIEW,UPDATE
+-----------------------------------------------------------------------------
 
-view = Simulation.view
+crashed model =
+    Block.hit_wall model.blocks 0.1 (Simulation.lastPos model.simu)
 
-subs = Simulation.subs
+update msg model =
+    if model.crashed || crashed model
+    then { model | crashed = True } ! []
+    else
+        let
+            (simu,cmd) = Simulation.update position msg model.simu
+        in
+            ({model | simu = simu}, cmd)
+
+view model =
+    let
+        model' =
+            if model.crashed
+            then paint_blocks red model
+            else paint_blocks black model
+    in
+        Simulation.view model'.simu
+
+-----------------------------------------------------------------------------
+--- SUBS
+-----------------------------------------------------------------------------
+
+subs model =
+    if model.crashed then Sub.none
+    else Simulation.subs model.simu
 
 -----------------------------------------------------------------------------
 --- MAIN
@@ -130,3 +154,9 @@ main =
 
 range : (Float,Float) -> Simulation.Range
 range (t0,t1) = {min=t0,max=t1}
+
+(=>) =
+    (,)
+
+type alias Point =
+    (Float, Float)

@@ -24,6 +24,8 @@ module Plot
         , vshadow
         , scatter
         , poly
+        , block
+        , blocks
         , eval
         , horiz
         , vert
@@ -40,6 +42,7 @@ module Plot
         )
 
 import Axis
+import Block
 import Flow
 import Planum exposing (Planum)
 import Element
@@ -522,13 +525,37 @@ scatter glyph pts graph =
             |> C.toForm
             |> piece graph
 
-
 poly : List (Float,Float) -> Color.Color -> Graph -> Graph
 poly verts color graph =
     List.map graph.plot.toView verts
         |> C.polygon
         |> C.filled color
         |> piece graph
+
+block_ : Block.Block -> Color.Color -> Graph -> C.Form
+block_ blk color graph =
+    let
+        t = graph.plot.xAxis.toView blk.top
+        l = graph.plot.xAxis.toView blk.left
+        r = graph.plot.xAxis.toView blk.right
+        b = graph.plot.xAxis.toView blk.bot
+        x = 0.5*(l+r)
+        y = 0.5*(t+b)
+    in
+        C.rect (r-l) (t-b)
+        |> C.filled color
+        |> C.move (x,y)
+        
+block : Block.Block -> Color.Color -> Graph -> Graph
+block blk color graph =
+    block_ blk color graph
+    |> piece graph
+
+blocks : List Block.Block -> Color.Color -> Graph -> Graph
+blocks blks color graph =
+    List.map (\blk -> block_ blk color graph) blks
+    |> C.group
+    |> piece graph
 
 eval color n f graph =
     let
