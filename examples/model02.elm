@@ -41,9 +41,6 @@ hit_wall blocks r (x,y) =
     in
         List.any (collided block) blocks
 
-range : (Float,Float) -> Simulation.Range
-range (t0,t1) = {min=t0,max=t1}
-
 opts : Simulation.Settings
 opts = { t = range (0,50)
        , s = range (0,10)
@@ -52,6 +49,10 @@ opts = { t = range (0,50)
        , height = 320
        , pos = position 0
        }
+
+-----------------------------------------------------------------------------
+--- Data
+-----------------------------------------------------------------------------
 
 position1 =
     Simulation.moving
@@ -99,23 +100,33 @@ position4 =
 position =
     position1
 
+-----------------------------------------------------------------------------
+--- TEA
+-----------------------------------------------------------------------------
 
+init = Simulation.initial opts ! Simulation.cmds
+
+update = Simulation.update position
+
+view = Simulation.view
+
+subs = Simulation.subs
 
 -----------------------------------------------------------------------------
 --- MAIN
 -----------------------------------------------------------------------------
 
-
 main =
     App.program
-        { init = Simulation.init opts ! Simulation.cmds
-        , update = Simulation.update position
-        , view = Simulation.view
-        , subscriptions = Simulation.subs
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subs
         }
-
-
 
 -----------------------------------------------------------------------------
 --- HELPERS
 -----------------------------------------------------------------------------
+
+range : (Float,Float) -> Simulation.Range
+range (t0,t1) = {min=t0,max=t1}

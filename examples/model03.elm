@@ -57,7 +57,7 @@ position time =
 
 main =
     App.program
-        { init = Simulation.init opts ! Simulation.cmds
+        { init = Simulation.initial opts ! Simulation.cmds
         , update = Simulation.update position
         , view = Simulation.view
         , subscriptions = Simulation.subs

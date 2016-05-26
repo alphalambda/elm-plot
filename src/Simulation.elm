@@ -2,7 +2,7 @@ module Simulation
     exposing
         ( Settings
         , Range
-        , init
+        , initial
         , update
         , view
         , mainview
@@ -45,7 +45,7 @@ type Msg
     | Resume
     | Step
 
-type alias Data =
+type alias Model =
     -- Parameters
     { trange : Range
     , srange : Range
@@ -95,7 +95,7 @@ type alias Settings =
     , pos : Point
     }
 
-initial : Settings -> Data
+initial : Settings -> Model
 initial d =
     { time = d.t.min
     , xyPlot = Plot.init XY |> Plot.mouseEnable
@@ -120,13 +120,10 @@ initial d =
     , status = Running
     , message = ""
     }
+    |> reset d.t.min d.pos
 
-init : Settings -> Data
-init settings =
-    initial settings |> reset settings.t.min settings.pos
-
-reset t0 ( x, y ) data =
-    { data
+reset t0 ( x, y ) model =
+    { model
         | time = t0
         , xyPoints = [ ( x, y ) ]
         , xpPoints = [ ( t0, x ) ]
@@ -134,13 +131,13 @@ reset t0 ( x, y ) data =
         , ypPoints = [ ( t0, y ) ]
         , yvPoints = []
         , status =
-            if data.status == Finished then Running
-            else data.status
+            if model.status == Finished then Running
+            else model.status
     }
 
 
-lastPos data =
-    case data.xyPoints of
+lastPos model =
+    case model.xyPoints of
         ( x, y ) :: _ ->
             ( x, y )
 
@@ -204,7 +201,7 @@ make_graph width height trange range slabel =
 -----------------------------------------------------------------------------
 
 
-subs data = case data.status of
+subs model = case model.status of
     Paused -> Window.resizes WindowSize
     Finished -> Window.resizes WindowSize
     Running ->
@@ -217,7 +214,7 @@ cmds =
     [ Task.perform (\_ -> Ignore) WindowSize Window.size ]
 
 
-update position msg data =
+update position msg model =
     let
         approx =
             Planum.approx 1 1
@@ -227,7 +224,7 @@ update position msg data =
     in
         case msg of
             WindowSize size ->
-                { data
+                { model
                 | winsize = size
                 -- , message = "Window size now " ++ toString size
                 } ! []
@@ -235,26 +232,26 @@ update position msg data =
             Plot msg' ->
                 let
                     xyPlot =
-                        Plot.update (get data.xyGraph) msg' data.xyPlot
+                        Plot.update (get model.xyGraph) msg' model.xyPlot
                         |> fst
 
                     xpPlot =
-                        Plot.update (get data.xpGraph) msg' data.xpPlot
+                        Plot.update (get model.xpGraph) msg' model.xpPlot
                         |> fst
 
                     ypPlot =
-                        Plot.update (get data.ypGraph) msg' data.ypPlot
+                        Plot.update (get model.ypGraph) msg' model.ypPlot
                         |> fst
 
                     xvPlot =
-                        Plot.update (get data.xvGraph) msg' data.xvPlot
+                        Plot.update (get model.xvGraph) msg' model.xvPlot
                         |> fst
 
                     yvPlot =
-                        Plot.update (get data.yvGraph) msg' data.yvPlot
+                        Plot.update (get model.yvGraph) msg' model.yvPlot
                         |> fst
                 in
-                    { data
+                    { model
                         | xpPlot = xpPlot
                         , ypPlot = ypPlot
                         , xvPlot = xvPlot
@@ -265,59 +262,59 @@ update position msg data =
 
             Tick dt ->
                 let
-                    data' =
-                        case data.status of
-                            Paused -> data
-                            Finished -> data
+                    model' =
+                        case model.status of
+                            Paused -> model
+                            Finished -> model
                             Running ->
                                 if
-                                    data.time >= data.trange.max
+                                    model.time >= model.trange.max
                                 then
-                                    { data | status = Finished } 
+                                    { model | status = Finished } 
                                 else
-                                    step position (dt/1000) data
+                                    step position (dt/1000) model
                 in
-                    data' ! []
+                    model' ! []
                     
             Ignore ->
-                data
-                -- {data | message = "Ignore" }
+                model
+                -- {model | message = "Ignore" }
                 ! []
 
             Reset ->
                 let
-                    t0 = data.trange.min
+                    t0 = model.trange.min
                 in
-                    reset t0 (position t0) data ! []
+                    reset t0 (position t0) model ! []
                 
             Pause ->
-                { data
+                { model
                 | status = Paused
                 -- , message = "Pause"
                 } ! []
                 
             Resume ->
-                { data
+                { model
                 | status = Running
                 -- , message = "Resume"
                 } ! []
             
             Step ->
                 let
-                    data' = case data.status of
-                        Finished -> data
-                        Running -> {data | status = Paused }
-                        Paused ->  step position 0.1 data
+                    model' = case model.status of
+                        Finished -> model
+                        Running -> {model | status = Paused }
+                        Paused ->  step position 0.1 model
                 in
-                    data' ! []
+                    model' ! []
 
-step position dt data =
+step position dt model =
     let
         time' =
-            data.time + dt
+            model.time + dt
 
         ( x, y ) =
-            lastPos data
+            lastPos model
 
         ( x', y' ) =
             position time'
@@ -328,70 +325,70 @@ step position dt data =
         vy =
             (y' - y) / dt
 
-        data' =
-            { data
+        model' =
+            { model
             | time = time'
-            , xyPoints = ( x', y' ) :: data.xyPoints
-            , xpPoints = ( time', x' ) :: data.xpPoints
-            , ypPoints = ( time', y' ) :: data.ypPoints
-            , xvPoints = ( time', vx ) :: data.xvPoints
-            , yvPoints = ( time', vy ) :: data.yvPoints
+            , xyPoints = ( x', y' ) :: model.xyPoints
+            , xpPoints = ( time', x' ) :: model.xpPoints
+            , ypPoints = ( time', y' ) :: model.ypPoints
+            , xvPoints = ( time', vx ) :: model.xvPoints
+            , yvPoints = ( time', vy ) :: model.yvPoints
             }
     in
-        data'
-        -- { data' | message = "Tick " ++ toString (Axis.approx 1 dt) }
+        model'
+        -- { model' | message = "Tick " ++ toString (Axis.approx 1 dt) }
 
-view data =
+view model =
     let
         pad =
             60
 
         pos =
-            lastPos data
+            lastPos model
 
         xyGraph' =
-            data.xyGraph
-                |> Plot.line green data.xyPoints
+            model.xyGraph
+                |> Plot.line green model.xyPoints
                 |> Plot.shadow green pos
                 |> Plot.scatter (Plot.dot black) [ pos ]
                 |> Plot.draw
 
-        -- xyGraph'' = Plot.draw data.xyGraph
-        -- xpGraph'' = Plot.draw data.xpGraph
-        -- xvGraph'' = Plot.draw data.xvGraph
-        -- ypGraph'' = Plot.draw data.ypGraph
-        -- yvGraph'' = Plot.draw data.yvGraph
+        -- xyGraph'' = Plot.draw model.xyGraph
+        -- xpGraph'' = Plot.draw model.xpGraph
+        -- xvGraph'' = Plot.draw model.xvGraph
+        -- ypGraph'' = Plot.draw model.ypGraph
+        -- yvGraph'' = Plot.draw model.yvGraph
 
         xpGraph' =
-            data.xpGraph
-                |> Plot.line red data.xpPoints |> Plot.draw
+            model.xpGraph
+                |> Plot.line red model.xpPoints |> Plot.draw
 
         ypGraph' =
-            data.ypGraph
-                |> Plot.line blue data.ypPoints |> Plot.draw
+            model.ypGraph
+                |> Plot.line blue model.ypPoints |> Plot.draw
 
         xvGraph' =
-            data.xvGraph
-                |> Plot.line red data.xvPoints |> Plot.draw
+            model.xvGraph
+                |> Plot.line red model.xvPoints |> Plot.draw
 
         yvGraph' =
-            data.yvGraph
-                |> Plot.line blue data.yvPoints |> Plot.draw
+            model.yvGraph
+                |> Plot.line blue model.yvPoints |> Plot.draw
 
         xyView =
-            Plot.view Plot xyGraph' data.xyPlot
+            Plot.view Plot xyGraph' model.xyPlot
 
         xpView =
-            Plot.view Plot xpGraph' data.xpPlot
+            Plot.view Plot xpGraph' model.xpPlot
 
         ypView =
-            Plot.view Plot ypGraph' data.ypPlot
+            Plot.view Plot ypGraph' model.ypPlot
 
         xvView =
-            Plot.view Plot xvGraph' data.xvPlot
+            Plot.view Plot xvGraph' model.xvPlot
 
         yvView =
-            Plot.view Plot yvGraph' data.yvPlot
+            Plot.view Plot yvGraph' model.yvPlot
 
         ( g0w, g0h ) =
             Plot.getSize xyGraph'
@@ -417,13 +414,13 @@ view data =
         panel =
             let
                 w =
-                    data.winsize.width - g11w - g12w - g0w - 2 * pad
+                    model.winsize.width - g11w - g12w - g0w - 2 * pad
 
                 h =
                     g11h + g21h + 2 * pad
 
                 t1 =
-                    "Time: " ++ toString (Axis.approx 1 data.time)
+                    "Time: " ++ toString (Axis.approx 1 model.time)
 
                 t2 =
                     "Position: " ++ toString (Planum.approx 1 1 pos)
@@ -438,13 +435,13 @@ view data =
                     [ div [style <| cstyle ++ font] [ text t1 ]
                     , div [style <| cstyle ++ font] [ text t2 ]
                     , button [ onClick Reset,style cstyle ] [ text "Reset" ]
-                    , if data.status == Paused
+                    , if model.status == Paused
                       then
                         button [onClick Resume,style cstyle] [ text "Resume" ]
                       else
                         button [ onClick Pause,style cstyle ] [ text "Pause" ]
                     , button [ onClick Step, style cstyle ] [ text "Step" ]
-                    -- , div [] [ text data.message ]
+                    -- , div [] [ text model.message ]
                     ]
 
         graphs =
@@ -452,15 +449,15 @@ view data =
                 h =
                     g11h + g21h + 2 * pad
             in
-                Flow.right data.winsize.width h [ graph12, xyView, panel ]
+                Flow.right model.winsize.width h [ graph12, xyView, panel ]
     in
         graphs
 
-mainview data =
+mainview model =
     body []
          [ h1 [] [ text "Simulation" ]
          , hr [] []
-         , view data
+         , view model
          , hr [] []
          ]
 
