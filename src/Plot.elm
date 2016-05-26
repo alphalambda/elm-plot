@@ -196,10 +196,10 @@ view lift g model =
                                          |> Element.leftAligned
 
                                 mouse21 = C.path [(g.x0,y),(x-10,y)]
-                                          |> C.traced (wide C.dashed black)
+                                          |> C.traced (C.dashed black)
                                           
                                 mouse22 = C.path [(x,g.y0),(x,y-10)]
-                                          |> C.traced (wide C.dashed black)
+                                          |> C.traced (C.dashed black)
                                           
                                 mouse2 = C.collage g.pwidth g.pheight 
                                             [mouse21,mouse22]
