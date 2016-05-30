@@ -28,12 +28,16 @@ opts = { t = range (0,50)
 
 position time =
     let
-        r =
+        rad =
             4
+            
+        (w,time0) =
+            if time < 10 then (36,0)
+            else if time < 30 then (18,10)
+            else (12,30)
 
-        t =
-            time * 36
-
+        wt = w * (time-time0)
+        
         c =
             cos << degrees
 
@@ -41,13 +45,12 @@ position time =
             sin << degrees
 
         x =
-            5 + r * c t
+            5 + rad * c wt
 
         y =
-            5 + r * s t
+            5 + rad * s wt
     in
         ( x, y )
-
 
 
 -----------------------------------------------------------------------------
