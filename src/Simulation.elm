@@ -16,6 +16,7 @@ import Axis
 import Flow exposing (px, (=>))
 import Planum
 import Plot
+
 import AnimationFrame
 import Color exposing (red, green, blue, black)
 import Html exposing (body, h1, div, text, hr, button)
@@ -142,17 +143,6 @@ reset t0 ( x, y ) model =
             else model.status
     }
 
-
-{-
-lastPos model =
-    case model.xyPoints of
-        ( x, y ) :: _ ->
-            ( x, y )
-
-        [] ->
-            ( 0, 0 )
--}
-
 -----------------------------------------------------------------------------
 --- GRAPHS
 -----------------------------------------------------------------------------
@@ -208,15 +198,20 @@ make_graph width height trange range slabel =
 -----------------------------------------------------------------------------
 
 
-subs model = case model.status of
-    Paused -> Window.resizes WindowSize
-    Finished -> Window.resizes WindowSize
-    Running ->
-        Sub.batch
-            [ Window.resizes WindowSize
-            , AnimationFrame.diffs Tick
-            ]
-
+subs model = 
+    let
+        asleep = Window.resizes WindowSize
+        
+        awake = Sub.batch
+                [ Window.resizes WindowSize
+                , AnimationFrame.diffs Tick
+                ]
+    in
+        case model.status of
+            Paused -> asleep
+            Finished -> asleep
+            Running -> awake
+ 
 cmds =
     [ Task.perform (\_ -> Ignore) WindowSize Window.size ]
 
@@ -282,7 +277,6 @@ update position msg model =
                     
             Ignore ->
                 model
-                -- {model | message = "Ignore" }
                 ! []
 
             Reset ->

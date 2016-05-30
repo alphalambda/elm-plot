@@ -1,0 +1,5 @@
+#!/bin/sh
+elm make examples/model01.elm --output=model01.html && ./fixbug model01.html
+elm make examples/model02.elm --output=model02.html && ./fixbug model02.html
+elm make examples/model03.elm --output=model03.html && ./fixbug model03.html
+elm make examples/model04.elm --output=model04.html && ./fixbug model04.html

@@ -1,0 +1,4 @@
+#!/bin/sh
+mv $1 $1.bug
+sed -e 's/while (numSteps < MAX_STEPS)/while (numSteps < MAX_STEPS \&\& process.root)/' < $1.bug > $1
+rm $1.bug
